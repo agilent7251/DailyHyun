@@ -6,6 +6,9 @@ on:
     - cron: '10 21 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   generate-briefing:
     runs-on: ubuntu-latest
@@ -14,7 +17,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # 전체 히스토리 가져오기 (rebase 충돌 방지)
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,13 +35,31 @@ jobs:
 
       - name: Commit and push updated index.html
         run: |
+          set -e
+
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 원격 최신 커밋 먼저 가져오기
-          git pull --rebase origin main
-
+          # 변경 없으면 종료
           git add index.html
-          git diff --staged --quiet || git commit -m "chore: daily briefing $(date +'%Y-%m-%d')"
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
 
-          git push origin main
+          git commit -m "chore: daily briefing $(date +'%Y-%m-%d')"
+
+          # 원격이 먼저 업데이트되는 레이스를 대비해서 fetch+rebase+push를 재시도
+          for i in 1 2 3; do
+            echo "=== Sync & push attempt $i/3 ==="
+            git fetch origin main
+            git rebase origin/main || (git rebase --abort && exit 1)
+
+            if git push origin HEAD:main; then
+              echo "✅ Push succeeded"
+              exit 0
+            fi
+
+            echo "⚠️ Push failed, retrying after sync..."
+            sleep 2
+          done
+
+          echo "❌ Push failed after 3 attempts"
+          exit 1
