@@ -4,7 +4,7 @@ on:
   schedule:
     # 매일 KST 06:10 = UTC 21:10 (전날)
     - cron: '10 21 * * *'
-  workflow_dispatch:   # 수동 실행 가능
+  workflow_dispatch:
 
 jobs:
   generate-briefing:
@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 전체 히스토리 가져오기 (rebase 충돌 방지)
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,6 +33,11 @@ jobs:
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 원격 최신 커밋 먼저 가져오기
+          git pull --rebase origin main
+
           git add index.html
           git diff --staged --quiet || git commit -m "chore: daily briefing $(date +'%Y-%m-%d')"
-          git push
+
+          git push origin main
