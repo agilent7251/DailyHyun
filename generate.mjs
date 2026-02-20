@@ -95,7 +95,7 @@ async function callClaude(systemPrompt, userPrompt) {
       'anthropic-beta': 'web-search-2025-03-05'
     },
     body: JSON.stringify({
-      model: model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-6",
       max_tokens: 1200,
       tools: [{
         type: 'web_search_20250305',
